@@ -25,15 +25,15 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 
-
 class ScreenShot:
-    def __init__(self, server_url, start_time=time(8, 0), end_time=time(17, 0), times_per_hour=7, days=[0,1,2,3,4]):
+    def __init__(self, server_url, user_id, start_time=time(8, 0), end_time=time(17, 0), times_per_hour=7, days=[0,1,2,3,4]):
         """
         server_url: URL to POST screenshots
         start_time, end_time: datetime.time objects (default 8:00 AM - 5:00 PM)
         times_per_hour: number of screenshots per hour (default 7)
         days: allowed weekdays (0=Mon, ..., 4=Fri by default)
         """
+        self.user_id = user_id
         self.start_time = start_time
         self.end_time = end_time
         self.server_url = server_url if server_url else "http://localhost:7600/screenshot/"
@@ -56,8 +56,8 @@ class ScreenShot:
             os.makedirs(screenshot_folder)
 
         # Generate a timestamp for the filename
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        output_file = f"{screenshot_folder}/screenshot_{timestamp}.png"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = f"{screenshot_folder}/{self.user_id}_{timestamp}.png"
 
         print("output_file ", output_file)
 
@@ -129,6 +129,8 @@ class ScreenShot:
     def run(self):
         logger.info("Screenshot scheduler started")
         while True:
+            # print(datetime.now())
+            # print("self.interval 1", self.interval)
             try:
                 if self._should_take_screenshot():
                     capture_screenshot_data = self._take_screenshot()
@@ -140,10 +142,13 @@ class ScreenShot:
                             'object_key': object_key,
                             'file_location': capture_screenshot_data
                         }
+                        print("payload ", payload)
+                        print("server url", self.server_url)
                         response = requests.post(self.server_url, json=payload)
                         print("response ", response.json())
                         logger.info(f"response => {response.json()}")  
                         logger.info(f"result url => {object_key}")  
+                    # print("self.interval", self.interval)
                     time_sleep(self.interval)
                 else:
                     time_sleep(10)  # wait before checking again
@@ -153,4 +158,3 @@ class ScreenShot:
             except Exception as e:
                 logger.error(f"Error in screenshot loop: {e}")
                 time_sleep(10)
-
