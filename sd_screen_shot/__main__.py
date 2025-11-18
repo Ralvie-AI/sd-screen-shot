@@ -1,6 +1,7 @@
 import argparse
 from datetime import time
 
+from sd_core.log import setup_logging
 from sd_screen_shot.screenshot import ScreenShot
 # from screenshot import ScreenShot
 
@@ -30,6 +31,14 @@ def str2bool(v):
         raise argparse.ArgumentTypeError("Boolean value expected (true/false).")
     
 def main():
+
+    # Set up logging
+    setup_logging(
+        "sd-screen-shot",
+        log_stderr=True,
+        log_file=True,
+    )
+
     parser = argparse.ArgumentParser(description="Screenshot uploader")
     parser.add_argument("--server_url", required=True, help="URL to upload screenshots")
     parser.add_argument("--user_id", required=True, help="User ID for identification")
@@ -42,9 +51,7 @@ def main():
     parser.add_argument("--is_idle_screenshot", type=str2bool, nargs="?", const=True, default=False,
                         help="Enable idle screenshots (true/false, default=False)")
 
-    args = parser.parse_args()
-
-    print("args ", args)
+    args = parser.parse_args()    
 
     screenshot = ScreenShot(
         server_url=args.server_url,
