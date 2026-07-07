@@ -37,6 +37,7 @@ class ScreenShot:
         self.days = days
         self.is_idle_screenshot = is_idle_screenshot
         self.interval = 3600 / times_per_hour  # seconds between screenshots
+        self.session = requests.Session()
 
     
     def _next_run_datetime(self, now: datetime) -> datetime:
@@ -159,8 +160,8 @@ class ScreenShot:
                 'event_id': event_id
             }          
 
-            response = requests.post(self.server_url, json=payload)
-            response.raise_for_status() # Raise an exception for bad status codes
+            with self.session.post(self.server_url, json=payload) as response:
+                response.raise_for_status()
 
         except requests.exceptions.RequestException as req_e:
             logger.error(f"Error during API request: {req_e}")
@@ -188,10 +189,9 @@ class ScreenShot:
         }
 
         logger.info(f"screenshot time range => {payload}")
-        response = requests.post(self.server_url + "get_event_time_range", json=payload)
-        response.raise_for_status() # Raise an exception for bad status codes
-        
-        response_result_tmp = response.json()      
+        with self.session.post(self.server_url + "get_event_time_range", json=payload) as response:
+            response.raise_for_status()
+            response_result_tmp = response.json()      
         response_result = json.loads(response_result_tmp["result"])
       
         if not os.path.isdir(SCREENSHOT_FOLDER):
@@ -271,30 +271,40 @@ class ScreenShot:
             size_bytes /= 1024
 
     def aggressive_compress_png(self, input_path, output_path):                   
-            
-        with Image.open(input_path) as img:
+        with Image.open(input_path) as img_orig:
+            img = img_orig
             # 1. Convert to RGB if necessary
             if img.mode != "RGB":
-                img = img.convert("RGB")
+                img_rgb = img.convert("RGB")
+            else:
+                img_rgb = img
                 
             # 2. Resize the image (PNGs at 4K or 1080p are rarely under 500kb)
             # We will scale it down to a max width of 1280px to save space
-            width, height = img.size
+            width, height = img_rgb.size
             if width > 1280:
                 ratio = 1280 / width
                 new_size = (1280, int(height * ratio))
-                img = img.resize(new_size, Image.Resampling.LANCZOS)
+                img_resized = img_rgb.resize(new_size, Image.Resampling.LANCZOS)
+                if img_rgb is not img_orig:
+                    img_rgb.close()
                 print(f"Resized to {new_size[0]}x{new_size[1]}")
+            else:
+                img_resized = img_rgb
 
             # 3. Apply Quantization (The most important step for PNG size)
             # We reduce the image to a 256-color palette
             print("Applying color quantization...")
-            img = img.convert("P", palette=Image.ADAPTIVE, colors=256)
+            img_quant = img_resized.convert("P", palette=Image.ADAPTIVE, colors=256)
+            if img_resized is not img_orig and img_resized is not img_rgb:
+                img_resized.close()
 
-            os.remove(input_path)
+            if os.path.exists(input_path):
+                os.remove(input_path)
             
             # 4. Save with optimization
-            img.save(output_path, "PNG", optimize=True)
+            img_quant.save(output_path, "PNG", optimize=True)
+            img_quant.close()
     
     def move_image_file(self, tmp_file):
         # logger.info(f"tmp_file => {tmp_file}")
@@ -384,8 +394,8 @@ class ScreenShot:
                     'event_id': event_id
                 }          
 
-                response = requests.post(self.server_url, json=payload)
-                response.raise_for_status() # Raise an exception for bad status codes
+                with self.session.post(self.server_url, json=payload) as response:
+                    response.raise_for_status()
                 # logger.info(f"Upload response always => {response.json()}")              
 
                 # Move to next anchored slot

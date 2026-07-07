@@ -77,6 +77,7 @@ def capture_screenshots(filename: str, ocr_filename: str):
         # 1. Save CLEAN crop for OCR (Using original coords)
         active_window_crop = canvas.crop((cx1, cy1, cx2, cy2))
         active_window_crop.save(ocr_filename)
+        active_window_crop.close()
 
         # 2. Draw the Box on the context shot using SAFE coordinates
         draw = ImageDraw.Draw(canvas)
@@ -87,6 +88,7 @@ def capture_screenshots(filename: str, ocr_filename: str):
         )
         
         canvas.save(filename)
+        canvas.close()
    
 def crop_black_background(image_path: str, 
                           output_path: Optional[str] = None, 
@@ -112,7 +114,7 @@ def crop_black_background(image_path: str,
         logger.info("Black background detected!")
     else:
         logger.info("No significant black background found.")
-        return Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        return None
 
     # --- Step 2: Create a mask of non-black pixels ---
     mask = gray > threshold  # True where pixels are NOT black
@@ -133,5 +135,8 @@ def crop_black_background(image_path: str,
 
     # --- Step 5: Save if output path provided ---
     if output_path:
-        os.remove(image_path)
+        if os.path.exists(image_path):
+            os.remove(image_path)
         result.save(output_path)
+        result.close()
+    return None
