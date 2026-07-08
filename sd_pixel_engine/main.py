@@ -25,6 +25,8 @@ def main():
     parser.add_argument("--is_idle_screenshot", type=str2bool, nargs="?", const=True, default=False,
                         help="Enable idle screenshots (true/false, default=False)")
     parser.add_argument("--tracking_interval", type=int, default=0, help="Tracking Intervalr")
+    parser.add_argument("--is_ocr_text_enabled", type=str2bool, nargs="?", const=True, 
+                        default=False, help="Extract ocr text from screenshots (true/false, default=True)")
 
     args = parser.parse_args()
 
@@ -44,6 +46,7 @@ def main():
         times_per_hour=args.times_per_hour,
         days=args.days,
         is_idle_screenshot=args.is_idle_screenshot,
+        is_ocr_text_enabled=args.is_ocr_text_enabled,
     )
 
     # screenshot.cleanup_old_screenshots()
