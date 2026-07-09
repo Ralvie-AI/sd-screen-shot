@@ -272,39 +272,46 @@ class ScreenShot:
 
     def aggressive_compress_png(self, input_path, output_path):                   
         with Image.open(input_path) as img_orig:
-            img = img_orig
-            # 1. Convert to RGB if necessary
-            if img.mode != "RGB":
-                img_rgb = img.convert("RGB")
-            else:
-                img_rgb = img
+            img_rgb = None
+            img_resized = None
+            img_quant = None
+            try:
+                img = img_orig
+                # 1. Convert to RGB if necessary
+                if img.mode != "RGB":
+                    img_rgb = img.convert("RGB")
+                else:
+                    img_rgb = img
+                    
+                # 2. Resize the image (PNGs at 4K or 1080p are rarely under 500kb)
+                # We will scale it down to a max width of 1280px to save space
+                width, height = img_rgb.size
+                if width > 1280:
+                    ratio = 1280 / width
+                    new_size = (1280, int(height * ratio))
+                    img_resized = img_rgb.resize(new_size, Image.Resampling.LANCZOS)
+                    print(f"Resized to {new_size[0]}x{new_size[1]}")
+                else:
+                    img_resized = img_rgb
+
+                # 3. Apply Quantization (The most important step for PNG size)
+                # We reduce the image to a 256-color palette
+                print("Applying color quantization...")
+                img_quant = img_resized.convert("P", palette=Image.ADAPTIVE, colors=256)
+
+                if os.path.exists(input_path):
+                    os.remove(input_path)
                 
-            # 2. Resize the image (PNGs at 4K or 1080p are rarely under 500kb)
-            # We will scale it down to a max width of 1280px to save space
-            width, height = img_rgb.size
-            if width > 1280:
-                ratio = 1280 / width
-                new_size = (1280, int(height * ratio))
-                img_resized = img_rgb.resize(new_size, Image.Resampling.LANCZOS)
-                if img_rgb is not img_orig:
+                # 4. Save with optimization
+                img_quant.save(output_path, "PNG", optimize=True)
+            finally:
+                # Close intermediate images to prevent memory leaks
+                if img_quant is not None and img_quant is not img_orig:
+                    img_quant.close()
+                if img_resized is not None and img_resized is not img_orig and img_resized is not img_rgb:
+                    img_resized.close()
+                if img_rgb is not None and img_rgb is not img_orig:
                     img_rgb.close()
-                print(f"Resized to {new_size[0]}x{new_size[1]}")
-            else:
-                img_resized = img_rgb
-
-            # 3. Apply Quantization (The most important step for PNG size)
-            # We reduce the image to a 256-color palette
-            print("Applying color quantization...")
-            img_quant = img_resized.convert("P", palette=Image.ADAPTIVE, colors=256)
-            if img_resized is not img_orig and img_resized is not img_rgb:
-                img_resized.close()
-
-            if os.path.exists(input_path):
-                os.remove(input_path)
-            
-            # 4. Save with optimization
-            img_quant.save(output_path, "PNG", optimize=True)
-            img_quant.close()
     
     def move_image_file(self, tmp_file):
         # logger.info(f"tmp_file => {tmp_file}")

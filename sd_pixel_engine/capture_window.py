@@ -1,3 +1,4 @@
+import gc
 import os
 import logging
 from typing import Tuple, Optional
@@ -101,42 +102,63 @@ def crop_black_background(image_path: str,
         output_path: Path to save cropped image (optional)
         threshold: Pixel value threshold to consider as "black" (0-255)    
     """
-    # Load image
-    img = cv2.imread(image_path)
-    
-    # --- Step 1: Check if black background exists ---
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    black_pixels = np.sum(gray <= threshold)
-    total_pixels = gray.size
-    black_ratio = black_pixels / total_pixels
+    img = None
+    gray = None
+    mask = None
+    coords = None
+    cropped = None
+    cropped_rgb = None
+    result = None
+    try:
+        # Load image
+        img = cv2.imread(image_path)
         
-    if black_ratio > BLACK_RATIO_THRESHOLD:  # More than 5% black pixels
-        logger.info("Black background detected!")
-    else:
-        logger.info("No significant black background found.")
+        # --- Step 1: Check if black background exists ---
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        black_pixels = np.sum(gray <= threshold)
+        total_pixels = gray.size
+        black_ratio = black_pixels / total_pixels
+            
+        if black_ratio > BLACK_RATIO_THRESHOLD:  # More than 5% black pixels
+            logger.info("Black background detected!")
+        else:
+            logger.info("No significant black background found.")
+            return None
+
+        # --- Step 2: Create a mask of non-black pixels ---
+        mask = gray > threshold  # True where pixels are NOT black
+
+        # --- Step 3: Find bounding box of non-black content ---
+        coords = np.argwhere(mask)          # All non-black pixel coordinates
+        y_min, x_min = coords.min(axis=0)  # Top-left corner
+        y_max, x_max = coords.max(axis=0)  # Bottom-right corner
+        
+        # print(f"Content bounding box: ({x_min}, {y_min}) → ({x_max}, {y_max})")
+
+        # --- Step 4: Crop the image ---
+        cropped = img[y_min:y_max+1, x_min:x_max+1]
+        
+        # Convert BGR (OpenCV) → RGB (PIL)
+        cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
+        result = Image.fromarray(cropped_rgb)
+
+        # --- Step 5: Save if output path provided ---
+        if output_path:
+            if os.path.exists(image_path):
+                os.remove(image_path)
+            result.save(output_path)
+            result.close()
+            result = None
         return None
-
-    # --- Step 2: Create a mask of non-black pixels ---
-    mask = gray > threshold  # True where pixels are NOT black
-
-    # --- Step 3: Find bounding box of non-black content ---
-    coords = np.argwhere(mask)          # All non-black pixel coordinates
-    y_min, x_min = coords.min(axis=0)  # Top-left corner
-    y_max, x_max = coords.max(axis=0)  # Bottom-right corner
-    
-    # print(f"Content bounding box: ({x_min}, {y_min}) → ({x_max}, {y_max})")
-
-    # --- Step 4: Crop the image ---
-    cropped = img[y_min:y_max+1, x_min:x_max+1]
-    
-    # Convert BGR (OpenCV) → RGB (PIL)
-    cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
-    result = Image.fromarray(cropped_rgb)
-
-    # --- Step 5: Save if output path provided ---
-    if output_path:
-        if os.path.exists(image_path):
-            os.remove(image_path)
-        result.save(output_path)
-        result.close()
-    return None
+    finally:
+        # Explicitly free large image/numpy arrays to prevent memory leaks
+        del img
+        del gray
+        del mask
+        del coords
+        del cropped
+        del cropped_rgb
+        if result is not None:
+            result.close()
+        del result
+        gc.collect()
