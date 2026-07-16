@@ -99,7 +99,7 @@ class ScreenShot:
 
         # logger.info(f"Times => {slots}")
     
-    def run(self):
+    def run_old(self):
         logger.info("Screenshot scheduler started (cross-midnight safe)")
 
         last_logged_date = None
@@ -141,6 +141,56 @@ class ScreenShot:
                 # sleep_time = max(0, INTERVAL - duration)
                 # logger.info(f"sleep_time INTERVAL {sleep_time} seconds")
                 time_sleep(INTERVAL)
+
+            self._scheduled_job()
+    
+    def run(self):
+        logger.info("Screenshot scheduler started (cross-midnight safe)")
+
+        last_logged_date = None
+
+        while True:
+            now = datetime.now()
+
+            # Determine schedule day (cross-midnight safe)
+            schedule_day = now.date()
+            if now.date() != last_logged_date:
+                last_logged_date = now.date()
+                self._log_today_schedule(now)
+
+            if self.end_time <= self.start_time and now.time() <= self.end_time:
+                schedule_day -= timedelta(days=1)
+
+            if schedule_day.weekday() not in self.days:
+                logger.info("Schedule day not allowed. Sleeping until next day.")
+                screenshot_pid = get_running_process_id("sd-pixel-engine")
+                stop_process(screenshot_pid)
+                break
+
+            next_run = self._next_run_datetime(now)
+            logger.info(f"next run => {next_run}")
+
+            # บล็อกดักจับเครื่องตื่น: ถ้าตื่นมาแล้วเวลาปัจจุบันเลยเป้าหมายไปแล้ว ให้ข้ามลูปย่อยทันที
+            if now >= next_run:
+                logger.warning(f"System wake up or lag detected in run(). Re-aligning target from {next_run.strftime('%H:%M:%S')}...")
+                # บังคับหลุดลูปย่อยเพื่อไปรันคำสั่งกำหนดเวลาใหม่ในรอบถัดไป
+            
+            else:
+                # วนลูปถ่ายรูปย่อยทุกๆ 30 วินาที ตราบใดที่เวลาจริงยังไม่ถึงเป้าหมายรอบใหญ่
+                while datetime.now() < next_run:
+                    self._take_screenshot_30_seconds()
+                    
+                    # คำนวณเวลาที่เหลือจริง ณ วินาทีปัจจุบัน
+                    remaining_seconds = (next_run - datetime.now()).total_seconds()
+                    
+                    # ถ้าหมดเวลาแล้ว หรือเวลาเดินเลยเป้าหมายไปแล้ว ให้หลุดลูปทันที
+                    if remaining_seconds <= 0:
+                        break
+                        
+                    # สั่งนอนสั้นๆ ตามค่า INTERVAL (เช่น 30 วินาที) หรือตามเวลาที่เหลือจริง
+                    sleep_chunk = min(INTERVAL, remaining_seconds)
+                    time_sleep(sleep_chunk)
+          
 
             self._scheduled_job()
 
@@ -369,7 +419,7 @@ class ScreenShot:
         return today_start + interval * intervals_passed
 
 
-    def run_always(self):
+    def run_always_old(self):
         logger.info(
             f"Anchored mode: {self.times_per_hour} screenshots/hour "
             f"(every {int(3600 / self.times_per_hour)} seconds)"
@@ -448,6 +498,91 @@ class ScreenShot:
             #     # Final safety check to realign targets during runtime slippage or system sleep events
             #     if next_run <= datetime.now():
             #         next_run = self._next_anchored_time(datetime.now())
+    
+    def run_always(self):
+        logger.info(
+            f"Anchored mode: {self.times_per_hour} screenshots/hour "
+            f"(every {int(3600 / self.times_per_hour)} seconds)"
+        )
+
+        next_run = self._next_anchored_time(datetime.now())
+        logger.info(f"First anchored screenshot at {next_run.strftime('%H:%M:%S')}")
+
+        while True:
+            screenshot_path = None
+            event_id = None
+            try:
+                now = datetime.now()
+                
+                # 1. ปลดล็อก Comment: ดักจับตอนเครื่องตื่น (Wake up / Lag)
+                # ถ้าเวลาปัจจุบันมันเลยเป้าหมายไปแล้ว ให้รีเซ็ตเป้าหมายใหม่ทันที
+                if next_run <= now:
+                    logger.warning(f"System wake up or lag detected. Re-aligning target time from {next_run.strftime('%H:%M:%S')}...")
+                    next_run = self._next_anchored_time(now)
+    
+                # 2. ปรับ Inner Loop: เช็กจากเวลาจริง (datetime.now()) แทนการเอาตัวแปรมาลบเลข
+                while datetime.now() < next_run:
+                    self._take_screenshot_30_seconds()
+                    
+                    # คำนวณเวลาที่เหลือจริง ณ วินาทีปัจจุบัน
+                    remaining_seconds = (next_run - datetime.now()).total_seconds()
+                    
+                    # ถ้าหมดเวลาแล้ว หรือค่าติดลบ (แปลว่าเลยเวลา) ให้หลุดลูปย่อยเพื่อไปถ่ายภาพหลักทันที
+                    if remaining_seconds <= 0:
+                        break
+                        
+                    # คำนวณเวลานอน โดยอิงจากเวลาที่เหลือ (ไม่เกิน INTERVAL)
+                    sleep_chunk = min(INTERVAL, remaining_seconds)
+                    time_sleep(sleep_chunk)
+
+                logger.info("Taking anchored screenshot")
+                screenshot_path, event_id = self.get_image_path_and_event_id()
+
+                # Safely skip execution if empty paths are returned due to locked screens
+                if not screenshot_path:
+                    logger.info("Skipping this cycle because no new screenshots are available.")
+                    next_run += timedelta(seconds=3600 / self.times_per_hour)
+                    
+                    # เพิ่มกันเหนียว: ถ้าบวกไปแล้วยังน้อยกว่าเวลาปัจจุบันอีก (เช่น หลับไปนานมาก) ให้จัดคิวใหม่
+                    if next_run <= datetime.now():
+                        next_run = self._next_anchored_time(datetime.now())
+                    continue
+
+                # Parsing issues (ValueError/IndexError) might happen here if filename structures drift
+                try:
+                    capture_time = get_image_name_to_utc_dt(screenshot_path)
+                    payload = {
+                        "file_location": screenshot_path,
+                        "is_idle_screenshot": self.is_idle_screenshot,
+                        "created_at": capture_time.isoformat(),
+                        "event_id": event_id,
+                        "is_ocr_text_enabled": self.is_ocr_text_enabled,
+                    }
+
+                    response = requests.post(self.server_url, json=payload)
+                    response.raise_for_status()
+                except Exception as parse_or_api_error:
+                    logger.error(f"Failed to process or upload this cycle: {parse_or_api_error}")
+
+                # Normal operation progression path
+                next_run += timedelta(seconds=3600 / self.times_per_hour)
+                logger.info(f"Second anchored screenshot at {next_run.strftime('%H:%M:%S')}")
+
+                if next_run <= datetime.now():
+                    next_run = self._next_anchored_time(datetime.now())
+
+            except requests.exceptions.RequestException as req_e:
+                logger.error(f"API error: {req_e}")
+                time_sleep(10)
+                # Re-align next_run forward to avoid looping infinitely on server down-time
+                next_run = self._next_anchored_time(datetime.now())
+
+            except Exception as e:
+                logger.error(f"Anchored scheduler error: {e}")
+                time_sleep(10)
+                # CRITICAL FIX: Forces next_run into the future on any unexpected crash
+                # This completely breaks the 10-second rapid error loop behavior.
+                next_run = self._next_anchored_time(datetime.now())
 
     def cleanup_old_screenshots(self):
             screenshot_folder = SCREENSHOT_FOLDER_USER.format(user_id=self.user_id)
