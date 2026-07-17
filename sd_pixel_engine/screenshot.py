@@ -221,7 +221,7 @@ class ScreenShot:
         # Active window screenshot (3 conditions handled)
         capture_active_window_screenshot(output_file)
     
-    def _take_screenshot_30_seconds(self, screenshot_folder=None):
+    def _take_screenshot_30_seconds_old(self, screenshot_folder=None):
         if screenshot_folder is None:
             screenshot_folder = SCREENSHOT_FOLDER_USER.format(user_id=self.user_id)
         os.makedirs(screenshot_folder, exist_ok=True)
@@ -234,6 +234,49 @@ class ScreenShot:
 
         capture_fullscreen(full_path)
         capture_active_window_screenshot(active_path)
+
+        return full_path, active_path
+    
+    def _take_screenshot_30_seconds(self, screenshot_folder=None):
+        if screenshot_folder is None:
+            screenshot_folder = SCREENSHOT_FOLDER_USER.format(user_id=self.user_id)
+        os.makedirs(screenshot_folder, exist_ok=True)
+
+        utc_now = datetime.now(timezone.utc)
+        timestamp = utc_now.strftime("%Y-%m-%dT%H-%M-%S.%fZ")
+
+        full_path = f"{screenshot_folder}/{self.user_id}_{timestamp}.png"
+        active_path = f"{screenshot_folder}/{self.user_id}_{timestamp}_active.png"
+
+        # 1. ลองแคปหน้าจอหลัก (Fullscreen)
+        try:
+            capture_fullscreen(full_path)
+        except Exception as e:
+            logger.warning(
+                f"Mac Screen Locked / Sleep - Fullscreen capture skipped: {e}"
+            )
+            # เคลียร์ไฟล์ขยะขนาด 0 byte (ถ้ามี)
+            if os.path.exists(full_path):
+                try:
+                    os.remove(full_path)
+                except OSError:
+                    pass
+            full_path = None
+
+        # 2. ลองแคปหน้าต่างที่ใช้งานอยู่ (Active Window)
+        try:
+            capture_active_window_screenshot(active_path)
+        except Exception as e:
+            logger.warning(
+                f"Mac Screen Locked / Sleep - Active window capture skipped: {e}"
+            )
+            # เคลียร์ไฟล์ขยะขนาด 0 byte (ถ้ามี)
+            if os.path.exists(active_path):
+                try:
+                    os.remove(active_path)
+                except OSError:
+                    pass
+            active_path = None
 
         return full_path, active_path
 
