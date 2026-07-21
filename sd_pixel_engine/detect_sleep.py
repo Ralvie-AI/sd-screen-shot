@@ -1,28 +1,45 @@
 import time
 import logging
+import subprocess
+import os
+import sys
 from datetime import datetime, timedelta
-
-from sd_main.sd_desktop.monitor import stop_process, get_running_process_id
 
 logger = logging.getLogger(__name__)
 
-SLEEP_THRESHOLD = timedelta(minutes=15)
-CHECK_INTERVAL = 5  # seconds
+SLEEP_THRESHOLD = timedelta(minutes=45)
+CHECK_INTERVAL = 5
 
 last_tick_time = None
-already_killed = False
+already_restarted = False
 
+def restart_process(reason: str):
+    global already_restarted
 
-def on_long_sleep_detected(gap: timedelta):
-    logger.warning(f"Long sleep detected (gap={gap})")
-    pid = get_running_process_id("sd-pixel-engine")
-    stop_process(pid)
+    if already_restarted:
+        return
+
+    already_restarted = True
+
+    logger.warning(f"Restarting sd-pixel-engine: {reason}")
+
+    try:
+        # เปิด process ใหม่
+        subprocess.Popen([sys.executable] + sys.argv)
+
+        logger.info("New sd-pixel-engine started.")
+
+        # ปิด process เดิม
+        os._exit(0)
+
+    except Exception:
+        logger.exception("Failed to restart process")
 
 
 def sleep_wake_monitor_loop():
-    global last_tick_time, already_killed
+    global last_tick_time
 
-    logger.info("Starting macOS sleep detector loop")
+    logger.warning("Sleep detector started")
 
     last_tick_time = datetime.now()
 
@@ -32,11 +49,11 @@ def sleep_wake_monitor_loop():
         now = datetime.now()
         gap = now - last_tick_time
 
-        # check when wake
+        logger.warning(
+            f"last={last_tick_time}, now={now}, gap={gap.total_seconds()}"
+        )
+
         if gap >= SLEEP_THRESHOLD:
-            if not already_killed:
-                on_long_sleep_detected(gap)
-                already_killed = True
-            return 
+            logger.warning("LONG SLEEP DETECTED")
 
         last_tick_time = now

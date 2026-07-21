@@ -148,10 +148,14 @@ EXCLUDED_OWNERS = {
 # ------------------------------
 
 def is_screen_locked():
-    """Return True if macOS screen is locked."""
     session_info = Quartz.CGSessionCopyCurrentDictionary()
+    # logger.info(f"session_info = {session_info}")
     if session_info:
-        return session_info.get("CGSSessionScreenIsLocked", False)
+        locked = session_info.get("CGSSessionScreenIsLocked", False)
+        # logger.info(f"CGSSessionScreenIsLocked = {locked}")
+        return locked
+
+    logger.info("session_info is None")
     return False
 
 
