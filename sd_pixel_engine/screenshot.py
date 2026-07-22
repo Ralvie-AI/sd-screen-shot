@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 class ScreenShot:
     def __init__(self, server_url, user_id, start_time=time(0, 0), 
                  end_time=time(23, 59), times_per_hour=1, 
-                 days=[0,1,2,3,4], is_idle_screenshot=False):
+                 days=[0,1,2,3,4], is_idle_screenshot=False,
+                 is_ocr_text_enabled=True,):
         """
         server_url: URL to POST screenshots
         start_time, end_time: datetime.time objects (default 8:00 AM - 5:00 PM)
@@ -38,6 +39,7 @@ class ScreenShot:
         self.is_idle_screenshot = is_idle_screenshot
         self.interval = 3600 / times_per_hour  # seconds between screenshots
         self.session = requests.Session()
+        self.is_ocr_text_enabled = is_ocr_text_enabled
 
     
     def _next_run_datetime(self, now: datetime) -> datetime:
@@ -157,7 +159,8 @@ class ScreenShot:
                 'file_location': screenshot_path,
                 'is_idle_screenshot': self.is_idle_screenshot,
                 'created_at': capture_time.isoformat(),
-                'event_id': event_id
+                'event_id': event_id,
+                'is_ocr_text_enabled': self.is_ocr_text_enabled,
             }          
 
             with self.session.post(self.server_url, json=payload, verify=str(CERT),) as response:
@@ -398,7 +401,8 @@ class ScreenShot:
                     'file_location': screenshot_path,
                     'is_idle_screenshot': self.is_idle_screenshot,
                     'created_at': capture_time.isoformat(),
-                    'event_id': event_id
+                    'event_id': event_id,
+                    'is_ocr_text_enabled': self.is_ocr_text_enabled,
                 }          
 
                 with self.session.post(self.server_url, json=payload, verify=str(CERT),) as response:
