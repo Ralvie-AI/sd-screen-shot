@@ -35,6 +35,10 @@ def main():
     # Set up logging
     setup_logging("sd-pixel-engine", log_file=True)
 
+    # Detect long sleep
+    detect_sleep_thread = threading.Thread(target=sleep_wake_monitor_loop,daemon=True)
+    detect_sleep_thread.start()
+
     screenshot_folder = SCREENSHOT_FOLDER_USER.format(user_id=args.user_id)   
     if os.path.exists(screenshot_folder):
         logger.debug(f"deleteing screenshot_folder => {screenshot_folder}")
@@ -58,6 +62,4 @@ def main():
         screenshot.run()
 
 if __name__ == '__main__':
-    detect_sleep_thread = threading.Thread(target=sleep_wake_monitor_loop,daemon=True)
-    detect_sleep_thread.start()
     main()
