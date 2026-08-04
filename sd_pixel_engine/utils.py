@@ -402,60 +402,6 @@ def capture_active_window_screenshot(output_file: str):
     return output_file
 
 
-def capture_fullscreen_old(output_file: str):
-    """
-    Capture full screen and highlight active window with a red border.
-    
-    Cases:
-    - Normal window → draw border around window
-    - Fullscreen / unknown → highlight entire active display
-    """
-
-    if is_screen_locked():
-        logger.warning("[SKIP] Screen is locked.")
-        return None
-
-    try:
-        win = get_active_window_info()
-        is_normal_window = win and win["height"] > 100
-
-        with mss() as sct:
-            monitor_all = sct.monitors[0]
-            screenshot = sct.grab(monitor_all)
-
-            img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
-            draw = ImageDraw.Draw(img)
-            thickness = 3
-
-            if is_normal_window:
-                # Draw border around detected window
-                left = win["left"] - monitor_all["left"]
-                top = win["top"] - monitor_all["top"]
-                right = left + win["width"]
-                bottom = top + win["height"]
-            else:
-                # Fullscreen fallback → highlight entire display
-                display_id = get_display_id_from_mouse()
-                d_bounds = Quartz.CGDisplayBounds(display_id)
-
-                left = int(d_bounds.origin.x) - monitor_all["left"]
-                top = int(d_bounds.origin.y) - monitor_all["top"]
-                right = left + int(d_bounds.size.width)
-                bottom = top + int(d_bounds.size.height)
-
-            for i in range(thickness):
-                draw.rectangle(
-                    [left - i, top - i, right + i, bottom + i],
-                    outline="red"
-                )
-
-            img.save(output_file)
-            return output_file
-
-    except Exception as e:
-        logger.error(f"[ERROR] Fullscreen capture failed: {e}")
-        return None
-
 def capture_fullscreen(output_file: str):
     if is_screen_locked():
         logger.warning("[SKIP] Screen is locked.")
