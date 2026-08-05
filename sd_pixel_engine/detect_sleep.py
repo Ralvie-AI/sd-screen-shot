@@ -85,8 +85,6 @@ def create_hidden_power_listener():
 
 
 if __name__ == "__main__":
-    print("Long sleep (≥48h) detector running... (Ctrl+C to stop)")
-
     t = threading.Thread(target=create_hidden_power_listener, daemon=True)
     t.start()
 

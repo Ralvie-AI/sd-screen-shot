@@ -293,13 +293,13 @@ class ScreenShot:
                     ratio = 1280 / width
                     new_size = (1280, int(height * ratio))
                     img_resized = img_rgb.resize(new_size, Image.Resampling.LANCZOS)
-                    print(f"Resized to {new_size[0]}x{new_size[1]}")
+                    logger.info(f"Resized to {new_size[0]}x{new_size[1]}")
                 else:
                     img_resized = img_rgb
 
                 # 3. Apply Quantization (The most important step for PNG size)
                 # We reduce the image to a 256-color palette
-                print("Applying color quantization...")
+
                 img_quant = img_resized.convert("P", palette=Image.ADAPTIVE, colors=256)
 
                 if os.path.exists(input_path):
