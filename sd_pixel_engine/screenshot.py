@@ -11,7 +11,7 @@ import requests
 from PIL import Image
 
 from sd_pixel_engine.utils import get_image_name_to_utc, add_second_to_utc, stop_process_by_exe
-from sd_pixel_engine.const import INTERVAL, SCREENSHOT_FOLDER, SCREENSHOT_FOLDER_USER, CERT
+from sd_pixel_engine.const import INTERVAL, SCREENSHOT_FOLDER, SCREENSHOT_FOLDER_USER, CERT_FILE
 from sd_pixel_engine.capture_window import crop_black_background, capture_screenshots
 
 os.environ.pop('HTTP_PROXY', None)
@@ -163,7 +163,7 @@ class ScreenShot:
                 'is_ocr_text_enabled': self.is_ocr_text_enabled,
             }          
 
-            with self.session.post(self.server_url, json=payload, verify=str(CERT),) as response:
+            with self.session.post(self.server_url, json=payload, verify=str(CERT_FILE),) as response:
                 response.raise_for_status()
 
         except requests.exceptions.RequestException as req_e:
@@ -192,7 +192,7 @@ class ScreenShot:
         }
 
         logger.info(f"screenshot time range => {payload}")
-        with self.session.post(self.server_url + "get_event_time_range", json=payload, verify=str(CERT),) as response:
+        with self.session.post(self.server_url + "get_event_time_range", json=payload, verify=str(CERT_FILE),) as response:
             response.raise_for_status()
             response_result_tmp = response.json()      
         response_result = json.loads(response_result_tmp["result"])
@@ -405,7 +405,7 @@ class ScreenShot:
                     'is_ocr_text_enabled': self.is_ocr_text_enabled,
                 }          
 
-                with self.session.post(self.server_url, json=payload, verify=str(CERT),) as response:
+                with self.session.post(self.server_url, json=payload, verify=str(CERT_FILE),) as response:
                     response.raise_for_status()
                 # logger.info(f"Upload response always => {response.json()}")              
 

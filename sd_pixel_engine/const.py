@@ -6,11 +6,7 @@ SCREENSHOT_FOLDER = os.path.join(os.environ['LOCALAPPDATA'], "Sundial", "Sundial
 
 INTERVAL = 30  # seconds
 
-CERT = (
-    Path(os.getenv("LOCALAPPDATA"))
-    / "Sundial"
-    / "Sundial"
-    / "tls"
-    / "localhost.crt"
-)
+TLS_DIR = Path(os.getenv("LOCALAPPDATA")) / "Sundial" / "Sundial" / "tls"
+
+CERT_FILE = TLS_DIR / "localhost.crt"
 
