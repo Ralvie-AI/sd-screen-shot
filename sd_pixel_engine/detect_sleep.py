@@ -5,12 +5,13 @@ import os
 import sys
 import Quartz
 from datetime import datetime, timedelta
+from sd_pixel_engine.const import SLEEP_THRESHOLD, LOCKSCREEN_THRESHOLD, CHECK_INTERVAL
 
 logger = logging.getLogger(__name__)
 
-SLEEP_THRESHOLD = timedelta(minutes=45) # for system sleep
-LOCKSCREEN_THRESHOLD = timedelta(hours=1) # for lockscreen
-CHECK_INTERVAL = 5  # seconds
+# SLEEP_THRESHOLD = timedelta(minutes=45) # for system sleep
+# LOCKSCREEN_THRESHOLD = timedelta(hours=1) # for lockscreen
+# CHECK_INTERVAL = 5  # seconds
 
 last_tick_time = None
 already_killed = False
