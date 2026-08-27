@@ -19,6 +19,7 @@ import subprocess
 from sd_pixel_engine.utils import get_image_name_to_utc, add_second_to_utc, capture_active_window_screenshot, get_image_name_to_utc_dt,capture_fullscreen
 from sd_pixel_engine.const import INTERVAL, SCREENSHOT_FOLDER, SCREENSHOT_FOLDER_USER
 from sd_main.sd_desktop.monitor import stop_process, get_running_process_id
+from sd_core.const import CERT_FILE
 
 
 os.environ.pop('HTTP_PROXY', None)
@@ -40,7 +41,7 @@ class ScreenShot:
         self.user_id = user_id
         self.start_time = start_time
         self.end_time = end_time
-        self.server_url = server_url if server_url else "http://localhost:7600/screenshot/"
+        self.server_url = server_url if server_url else "https://localhost:7600/screenshot/"
         self.times_per_hour = times_per_hour
         self.days = days
         self.is_idle_screenshot = is_idle_screenshot
@@ -308,7 +309,7 @@ class ScreenShot:
                 'is_ocr_text_enabled': self.is_ocr_text_enabled,
             }         
 
-            response = requests.post(self.server_url, json=payload)
+            response = requests.post(self.server_url, json=payload, verify=str(CERT_FILE))
             response.raise_for_status() # Raise an exception for bad status codes
             # logger.info(f"Upload response time_specific => {response.json()}")
 
@@ -353,7 +354,7 @@ class ScreenShot:
         }
     
         logger.info(f"screenshot time range => {payload}")
-        response = requests.post(self.server_url + "get_event_time_range", json=payload)
+        response = requests.post(self.server_url + "get_event_time_range", json=payload, verify=str(CERT_FILE), )
         response.raise_for_status()
     
         response_result_tmp = response.json()
@@ -512,7 +513,7 @@ class ScreenShot:
                         "is_ocr_text_enabled": self.is_ocr_text_enabled,
                     }
 
-                    response = requests.post(self.server_url, json=payload)
+                    response = requests.post(self.server_url, json=payload, verify=str(CERT_FILE),)
                     response.raise_for_status()
                 except Exception as parse_or_api_error:
                     logger.error(f"Failed to process or upload this cycle: {parse_or_api_error}")
@@ -602,7 +603,7 @@ class ScreenShot:
                         "is_ocr_text_enabled": self.is_ocr_text_enabled,
                     }
 
-                    response = requests.post(self.server_url, json=payload)
+                    response = requests.post(self.server_url, json=payload, verify=str(CERT_FILE),)
                     response.raise_for_status()
                 except Exception as parse_or_api_error:
                     logger.error(f"Failed to process or upload this cycle: {parse_or_api_error}")
