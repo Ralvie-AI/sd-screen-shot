@@ -5,7 +5,7 @@ import logging
 import threading
 from datetime import time
 
-from sd_core.log import setup_logging
+from sd_pixel_engine.log import setup_logging
 from sd_pixel_engine.screenshot import ScreenShot
 from sd_pixel_engine.const import SCREENSHOT_FOLDER_USER
 from sd_pixel_engine.utils import parse_time, parse_days, str2bool
